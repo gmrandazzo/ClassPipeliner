@@ -16,8 +16,11 @@ Classification models EC50 < 0.001
 1: Toxic
 0: Non toxic
 
-- [D. Magna classification results](https://raw.githubusercontent.com/gmrandazzo/ClassPipeliner/main/AcquaticEcoToxicity/d_magna.fp.simplebest_classifier.html)
-- [D. Promelas classification results](https://raw.githubusercontent.com/gmrandazzo/ClassPipeliner/main/AcquaticEcoToxicity/d_promelas.fp.simplebest_classifier.html)
+## D. Magna classification results
+![D. Magna classification results](https://raw.githubusercontent.com/gmrandazzo/ClassPipeliner/main/AcquaticEcoToxicity/dmagna_results.png)
+
+## D. Promelas classification results
+![D. Promelas classification results](https://raw.githubusercontent.com/gmrandazzo/ClassPipeliner/main/AcquaticEcoToxicity/dpromelas_results.png)
 
 
 Acknowledgment
