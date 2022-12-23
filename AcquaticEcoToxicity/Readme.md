@@ -17,15 +17,8 @@ Classification models EC50 < 0.001
 0: Non toxic
 
 ## D. Magna classification results
-![D. Magna classification results](https://raw.githubusercontent.com/gmrandazzo/ClassPipeliner/main/AcquaticEcoToxicity/dmagna_results.png)
+![D. Magna classification results](https://raw.githubusercontent.com/gmrandazzo/ClassPipeliner/main/AcquaticEcoToxicity/d_magna.fp.simple.png)
 
 ## D. Promelas classification results
-![D. Promelas classification results](https://raw.githubusercontent.com/gmrandazzo/ClassPipeliner/main/AcquaticEcoToxicity/dpromelas_results.png)
+![D. Promelas classification results](https://raw.githubusercontent.com/gmrandazzo/ClassPipeliner/main/AcquaticEcoToxicity/d_promelas.fp.simple.png)
 
-
-Acknowledgment
---------------
-
-Plots using plotly
-
-Author: Plotly Technologies Inc. Title: Collaborative data science Publisher: Plotly Technologies Inc. Place of publication: Montréal, QC Date of publication: 2015 URL: https://plot.ly

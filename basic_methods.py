@@ -24,9 +24,13 @@ import random
 from copy import copy
 from sklearn.linear_model import LogisticRegression
 import numpy as np
-
+from codecarbon import track_emissions
+from codecarbon import OfflineEmissionsTracker
+import json
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
@@ -37,6 +41,9 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.metrics import average_precision_score
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import accuracy_score
+from libscientific.pls import PLS
 
 from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import ModelCheckpoint
@@ -260,7 +267,7 @@ def tf_dnn(split : Split):
     """
     nunits = 256
     ndense_layers = 2
-    epochs_= 500
+    epochs_= 300
     batch_size_ = 20
 
     model = Sequential()
@@ -316,38 +323,92 @@ def tf_dnn(split : Split):
     del pr_auc
     return y_val_pred
 
+def pls_da(split : Split):
+    clf = PLS(nlv=6, xscaling=1, yscaling=0)
+    y_train = [[item] for item in split.y_train]
+    clf.fit(split.x_train, y_train)
+    p_c_y_test, _ = clf.predict(split.x_test)
+    # Select the best latent variables
+    res = []
+    for c in range(len(p_c_y_test[0])):
+        ypred = []
+        for i in range(len(p_c_y_test)):
+            ypred.append(p_c_y_test[i][c])
+        res.append(average_precision_score(split.y_test, np.array(ypred)>0.5))    
+    c = 0
+    for i in range(1, len(res)):
+        if res[i] > res[i-1] and np.abs(res[i]-res[i-1]+res[i-1]) > 0.01:
+            c += 1
+        else:
+            break
+    c = np.argmax(res)
+    p_c_y_val, _ = clf.predict(split.x_val)
+    p_y_val = []
+    for i in range(len(p_c_y_val)):
+        p_y_val.append(p_c_y_val[i][c])
+    return p_y_val
+
+
 def classify(split : Split):
     """
     Classify using sklearn and tensorflow models
     """
     print(">> Classify ")
-    names = ["Nearest Neighbors",
-            "Linear SVM",
-            "RBF SVM",
-            "Gaussian Process",
-            "Decision Tree"]
+    names = [
+        "Nearest Neighbors",
+        "Linear SVM",
+        "RBF SVM",
+        "Gaussian Process",
+        "Decision Tree",
+        "Random Forest",
+        "AdaBoost",
+        "Naive Bayes",
+        "QDA",
+    ]
 
-    classifiers = [KNeighborsClassifier(5),
-                   SVC(kernel="linear", C=0.025),
-                   SVC(gamma=2, C=1),
-                   GaussianProcessClassifier(1.0 * RBF(1.0)),
-                   DecisionTreeClassifier(max_depth=8),]
+    classifiers = [
+        KNeighborsClassifier(3),
+        SVC(kernel="linear", C=0.025),
+        SVC(gamma=2, C=1),
+        GaussianProcessClassifier(1.0 * RBF(1.0)),
+        DecisionTreeClassifier(max_depth=5),
+        RandomForestClassifier(max_depth=5, n_estimators=1000, max_features=1),
+        AdaBoostClassifier(),
+        GaussianNB(),
+        QuadraticDiscriminantAnalysis(),
+    ]
+
 
     """
     In this case we do not use the test set for algorithm reasons.
     """
+    
     class_results = {}
+    emissions_results = {}
     for name, clf in zip(names, classifiers):
         print(" * Calculating %s" % (name))
+        tracker = OfflineEmissionsTracker(country_iso_code="CHE")
+        tracker.start()
         clf = make_pipeline(StandardScaler(), clf)
         clf.fit(split.x_train, split.y_train)
         class_results[name] = clf.predict(split.x_val)
+        emissions_results[name] = float(tracker.stop())
+    
+    print(" * Calculating PLS-DA")
+    tracker = OfflineEmissionsTracker(country_iso_code="CHE")
+    tracker.start()
+    class_results["PLS-DA"] = pls_da(split)
+    emissions_results["PLS-DA"] = float(tracker.stop())
+    
     print(" * Calculating DNN")
+    tracker = OfflineEmissionsTracker(country_iso_code="CHE")
+    tracker.start()
     class_results["DNN"] = tf_dnn(split)
-    return class_results
+    emissions_results["DNN"] = float(tracker.stop())
+    return class_results, emissions_results
 
 
-def elaborate_results(y_true, class_results : dict):
+def elaborate_results(y_true, class_results : dict, emissions_results):
     """
     Elaborate the results in therms of precision recall auc.
     The higher the best it is.
@@ -356,7 +417,11 @@ def elaborate_results(y_true, class_results : dict):
     res = {}
     for key in class_results.keys():
         y_score = class_results[key]
-        res[key] = average_precision_score(y_true, y_score)
+        res[key] = {}
+        res[key]["AVG-PR"] = average_precision_score(y_true, y_score)
+        res[key]["ROC-AUC"] = roc_auc_score(y_true, y_score)
+        res[key]["Accuracy"] = accuracy_score(y_true, np.array(y_score)>0.5)
+        res[key]["emission"] = emissions_results[key]
     return res
 
 
@@ -367,41 +432,56 @@ def best_classifier(xdict : dict, x_header : list, ydict : dict):
     print(">> Search for best classifier")
     # split = make_split(xdict, x_header, ydict, 2785) << random split!!!
     split = make_balanced_split(xdict, x_header, ydict, 2785) # better split
-    class_results = classify(split)
-    return elaborate_results(split.y_val, class_results), split
-
-
-def write_html_barplot_output(res, html_out):
-    print(">> Write the final result")
-    f_html = open(html_out, "w",  encoding="utf-8")
-    f_html.write('<!DOCTYPE html>\n')
-    f_html.write('<html lang="en">\n')
-    f_html.write('<head>\n')
-    f_html.write('  <!-- Load plotly.js into the DOM -->\n')
-    f_html.write('  <script src="https://cdn.plot.ly/plotly-2.16.1.min.js"></script>\n')
-    f_html.write('</head>\n')
-    f_html.write('<body>\n')
-    f_html.write('  <div id="myDiv"></div>\n')
-    f_html.write('<script>\n')
+    class_results, emissions_results = classify(split)
     
-    xrow = ""
-    yrow = ""
+    return elaborate_results(split.y_val, class_results, emissions_results), split
+
+def write_results(res, out_name):
+    fig, axs = plt.subplots(2, 2, sharex=False, sharey=False)
+    x_emission = []
+    y_avgpr = []
+    y_rocauc = []
+    y_accuracy = []
+    method_name = []
     for key in res.keys():
-        xrow += "'%s'," % (key)
-        yrow += "%f," % (res[key])
+        method_name.append(key)
+        x_emission.append(res[key]["emission"])
+        y_avgpr.append(res[key]["AVG-PR"])
+        y_rocauc.append(res[key]["ROC-AUC"])
+        y_accuracy.append(res[key]["Accuracy"])
         
-    f_html.write('var data = [\n')
-    f_html.write('  {\n')
-    f_html.write('    x: [%s],\n' % (xrow))
-    f_html.write('    y: [%s],\n' % (yrow))
-    f_html.write('    type: "bar",\n')
-    f_html.write('  }\n')
-    f_html.write('];\n')
+    axs[0, 0].scatter(x_emission, y_avgpr, s=80, c="blue", marker="o")
+    axs[0, 0].set_ylabel("Average PR")
+    axs[0, 0].set_xlabel("Emission")
+    
+    size = 6
+    for i, txt in enumerate(method_name):
+        axs[0, 0].annotate(txt, (x_emission[i], y_avgpr[i]), fontsize=size)
+    
+    axs[0, 1].scatter(x_emission, y_rocauc, s=80, c="black", marker="o")
+    axs[0, 1].set_ylabel("ROC AUC")
+    axs[0, 1].set_xlabel("Emission")
+    
+    for i, txt in enumerate(method_name):
+        axs[0, 1].annotate(txt, (x_emission[i], y_rocauc[i]), fontsize=size)
+    
+    axs[1, 0].scatter(x_emission, y_accuracy, s=80, c="green", marker="o")
+    axs[1, 0].set_ylabel("Accuracy")
+    axs[1, 0].set_xlabel("Emission")
 
-    f_html.write('Plotly.newPlot("myDiv", data);\n')
-    f_html.write('</script>\n')
-    f_html.write('</body>\n')
-    f_html.close()
+    for i, txt in enumerate(method_name):
+        axs[1, 0].annotate(txt, (x_emission[i], y_accuracy[i]), fontsize=size)
+
+    axs[1, 1].barh(method_name, y_avgpr)
+    axs[1, 1].set_ylabel("ML Method")
+    axs[1, 1].set_xlabel("Average PR")
+
+
+    plt.tight_layout()
+    plt.savefig("%s.png" % (out_name), dpi=300)
+    with open("%s.json" % (out_name), "w") as write_file:
+        json.dump(res, write_file, indent=4)
+    return
 
 def write_html_barplot_output(res, html_out):
     print(">> Write the final result")
@@ -420,7 +500,7 @@ def write_html_barplot_output(res, html_out):
     yrow = ""
     for key in res.keys():
         xrow += "'%s'," % (key)
-        yrow += "%f," % (res[key])
+        yrow += "%f," % (res[key]["Avg-PR"])
         
     f_html.write('var data = [\n')
     f_html.write('  {\n')
@@ -436,7 +516,6 @@ def write_html_barplot_output(res, html_out):
     f_html.close()
 
 def write_html_variable_importance(res):
-   
     method_keys = []
     first_key = list(res.keys())[0]
     for key in res[first_key].keys():

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Load plotly.js into the DOM -->
+  <script src="https://cdn.plot.ly/plotly-2.16.1.min.js"></script>
+</head>
+<body>
+  <div id="myDiv"></div>
+<script>
+var data = [
+  {
+    x: ['Nearest Neighbors','Linear SVM','RBF SVM','Gaussian Process','Decision Tree','Random Forest','AdaBoost','Naive Bayes','QDA','PLS-DA','DNN',],
+    y: [0.956208,0.967213,0.627660,0.991597,0.932805,0.962606,0.960921,0.940505,0.959457,0.992307,0.995554,],
+    type: "bar",
+  }
+];
+Plotly.newPlot("myDiv", data);
+</script>
+</body>

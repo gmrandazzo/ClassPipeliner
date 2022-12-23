@@ -30,7 +30,7 @@ from copy import copy
 dir_path = os.path.dirname(os.path.realpath(__file__))
 sys.path.append("%s/../" % (dir_path))
 from basic_methods import best_classifier
-from basic_methods import write_html_barplot_output
+from basic_methods import write_results
 
 
 def readinput(f_inp):
@@ -55,8 +55,8 @@ def main():
         x_dict, x_header, y_dict = readinput(sys.argv[1])
         res, _ = best_classifier(x_dict, x_header, y_dict)
         outname = copy(sys.argv[1])
-        outname = outname.replace(".csv", "best_classifier.html")
-        write_html_barplot_output(res, outname)
+        outname = outname.replace(".csv", "")
+        write_results(res, outname)
     return
 
 if __name__ in "__main__":
