@@ -8,13 +8,21 @@ EC50: Concentration of a drug at which 50% of its maximal response is induced.
       show a 50% of activity. In this case the lower is the more toxic it is.
 
 
-Results
--------
+# Results
 
 Classification models EC50 < 0.001
 
 1: Toxic
 0: Non toxic
+
+DNN (neural network) requires a lot of energy compared to the other ML methods.
+On D. Magna, DNN performs way better than the other methods.
+
+On D. Promelas, instead, a simpler method, such as the Partial Least Squares Discriminant analysis (PLS-DA)
+perform similarly and require 200 less energy to develop an ML prediction model.
+
+On average, a DNN requires 0.02 Watt; PLS-DA requires 0.0001 Watt.
+
 
 ## D. Magna classification results
 ![D. Magna classification results](https://raw.githubusercontent.com/gmrandazzo/ClassPipeliner/main/AcquaticEcoToxicity/d_magna.fp.simple.png)
