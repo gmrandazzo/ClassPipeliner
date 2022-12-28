@@ -9,10 +9,10 @@ Source: [https://archive.ics.uci.edu/ml/datasets/Breast+Cancer+Wisconsin+(Diagno
 To reproduce the results please execute the script run.x.
 
 DNN (neural network) requires a lot of energy compared to the other ML methods.
-A simpler method, such as the Partial Least Squares Discriminant analysis (PLS-DA)
-perform similarly and require 200 less energy to develop an ML prediction model.
+A simpler method, such as the Partial Least Squares Discriminant Analysis (PLS-DA),
+performs similarly and requires 200 less energy to develop an ML prediction model.
 
-On average, a DNN requires 0.02 Watt; PLS-DA requires 0.0001 Watt.
+In this case a DNN requires 0.02 Watt; PLS-DA requires 0.0001 Watt.
 
 ![Breast Cancer Results](https://raw.githubusercontent.com/gmrandazzo/ClassPipeliner/main/BreastCancer/breast_cancer_results.png)
 

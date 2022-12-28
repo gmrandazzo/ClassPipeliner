@@ -73,8 +73,7 @@ The size of every spot represents the energy "impact" utilized to train the ML m
 DNN (neural network) in both molecular descriptions requires a lot of energy compared to the other ML methods.
 Moreover, a simpler method, such as the Partial Least Squares Discriminant analysis (PLS-DA)
 perform better on the validation prediction and require 200 less energy to develop an ML prediction model.
-
-On average, a DNN requires 0.02 Watt; PLS-DA requires 0.0001 Watt
+In this case a DNN requires 0.02 Watt; PLS-DA requires 0.0001 Watt
 Since we have trained 252 models, we have used 5 Watts to train the DNN and only 0.025 Watts to train PLS-DA for the same dataset and get a similar answer.
 
 Detailed results about the external validation set performances per kinase target 

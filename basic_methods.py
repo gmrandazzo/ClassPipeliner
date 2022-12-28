@@ -34,6 +34,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
+from sklearn.cross_decomposition import PLSRegression
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.tree import DecisionTreeClassifier
@@ -279,17 +280,18 @@ def tf_dnn(split : Split):
         model.add(Dropout(0.1))
     model.add(Dense(nunits, activation='relu'))
     model.add(Dense(1, activation='sigmoid'))
+    """
     pr_auc = AUC(num_thresholds=200,
                  curve='PR',
                  summation_method='interpolation')
-    
+    """
     """
     Binary cross entropy because is a 2 class classification problem
     Look always to PR and not accuracy for unbalanced classification problems
     """
     model.compile(loss='binary_crossentropy',
                   optimizer=optimizers.Adam(learning_rate=0.00005),
-                  metrics=['accuracy', pr_auc])
+                  metrics=['accuracy'])
  
     log_dir_ = ('./dnnlogs/')
     log_dir_ += time.strftime('%Y%m%d%H%M%S')
@@ -305,8 +307,6 @@ def tf_dnn(split : Split):
                                  monitor='val_loss',
                                  verbose=0,
                                  save_best_only=True)]
-
-
     model.fit(split.x_train, split.y_train,
               epochs=epochs_,
               batch_size=batch_size_,
@@ -320,7 +320,6 @@ def tf_dnn(split : Split):
     y_val_pred = bestmodel.predict(split.x_val)
     os.remove(model_output)
     del model
-    del pr_auc
     return y_val_pred
 
 def pls_da(split : Split):
@@ -347,6 +346,35 @@ def pls_da(split : Split):
     for i in range(len(p_c_y_val)):
         p_y_val.append(p_c_y_val[i][c])
     return p_y_val
+
+
+def pls_da_sklearn(split : Split):
+    sc = StandardScaler()
+    sc.fit(split.x_train)
+    y_pred = [[0 for j in range(6)] for i in range(len(split.x_test))]
+    for nlv in range(1, 6):
+        clf = PLSRegression(n_components=nlv)
+        clf.fit(sc.transform(split.x_train), split.y_train)
+        ypred = clf.predict(sc.transform(split.x_test))
+        for j in range(len(ypred)):
+            y_pred[j][nlv-1] = ypred[j]
+        del clf
+    res = []
+    for c in range(len(y_pred[0])):
+        ypred = []
+        for i in range(len(y_pred)):
+            ypred.append(y_pred[i][c])
+        res.append(average_precision_score(split.y_test, np.array(ypred)>0.5))    
+    c = 0
+    for i in range(1, len(res)):
+        if res[i] > res[i-1] and np.abs(res[i]-res[i-1]+res[i-1]) > 0.01:
+            c += 1
+        else:
+            break
+    c = np.argmax(res)
+    clf = PLSRegression(n_components=c)
+    clf.fit(sc.transform(split.x_train), split.y_train)
+    return clf.predict(sc.transform(split.x_val))
 
 
 def classify(split : Split):
@@ -399,7 +427,15 @@ def classify(split : Split):
     tracker.start()
     class_results["PLS-DA"] = pls_da(split)
     emissions_results["PLS-DA"] = float(tracker.stop())
+    """
+    Scikit learn PLS performance is worst than the NIPALS libscientific one
     
+    print(" * Calculating PLS-DA sklearn")
+    tracker = OfflineEmissionsTracker(country_iso_code="CHE")
+    tracker.start()
+    class_results["PLS-DA-SKLEARN"] = pls_da_sklearn(split)
+    emissions_results["PLS-DA-SKLEARN"] = float(tracker.stop())
+    """
     print(" * Calculating DNN")
     tracker = OfflineEmissionsTracker(country_iso_code="CHE")
     tracker.start()
@@ -425,13 +461,17 @@ def elaborate_results(y_true, class_results : dict, emissions_results):
     return res
 
 
-def best_classifier(xdict : dict, x_header : list, ydict : dict):
+def best_classifier(xdict : dict,
+                    x_header : list,
+                    ydict : dict,
+                    split_fnc=make_balanced_split):
     """
     Find the best classifier
     """
     print(">> Search for best classifier")
     # split = make_split(xdict, x_header, ydict, 2785) << random split!!!
-    split = make_balanced_split(xdict, x_header, ydict, 2785) # better split
+    # split = make_balanced_split(xdict, x_header, ydict, 2785) # better split
+    split = split_fnc(xdict, x_header, ydict, 2785) # better split
     class_results, emissions_results = classify(split)
     
     return elaborate_results(split.y_val, class_results, emissions_results), split
