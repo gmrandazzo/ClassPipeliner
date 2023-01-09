@@ -1,5 +1,7 @@
 # ClassPipeliner
 
+![Page views](https://visitor-badge.glitch.me/badge?page_id=gmrandazzo.ClassPipeliner)
+
 Binary Classification Pipeliner
 
 ## Requirements
