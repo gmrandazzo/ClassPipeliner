@@ -372,6 +372,8 @@ def pls_da_sklearn(split : Split):
         else:
             break
     c = np.argmax(res)
+    if c == 0:
+        c = 1
     clf = PLSRegression(n_components=c)
     clf.fit(sc.transform(split.x_train), split.y_train)
     return clf.predict(sc.transform(split.x_val))
@@ -540,7 +542,7 @@ def write_html_barplot_output(res, html_out):
     yrow = ""
     for key in res.keys():
         xrow += "'%s'," % (key)
-        yrow += "%f," % (res[key]["Avg-PR"])
+        yrow += "%f," % (res[key]["AVG-PR"])
         
     f_html.write('var data = [\n')
     f_html.write('  {\n')
@@ -590,9 +592,9 @@ def variable_importance(split : Split,
         split_copy.x_train = np.delete(split_copy.x_train, j, 1)
         split_copy.x_test = np.delete(split_copy.x_test, j, 1)
         split_copy.x_val = np.delete(split_copy.x_val, j, 1)
-        class_results = classify(split_copy)
-        curr_res = elaborate_results(split_copy.y_val, class_results)
+        class_results, emission_results = classify(split_copy)
+        curr_res = elaborate_results(split_copy.y_val, class_results, emission_results)
         v_imp[var_name] = {}
         for key in res_all_vars.keys():
-            v_imp[var_name][key] = curr_res[key]/res_all_vars[key]  
+            v_imp[var_name][key] = {"AVG-PR": curr_res[key]["AVG-PR"]/res_all_vars[key]["AVG-PR"]}
     return v_imp
